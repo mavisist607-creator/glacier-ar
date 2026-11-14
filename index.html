@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#123049">
+  <title>冰河地形 AR｜第一階段追蹤測試</title>
+  <!-- 使用 MindAR 官方文件中的固定版本，避免套件更新造成不相容 -->
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+  <style>
+    html, body { width:100%;height:100%;margin:0;overflow:hidden;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;background:#0b1825; }
+    a-scene { position:fixed; inset:0; width:100%; height:100%; }
+    #top { position:fixed;top:0;left:0;right:0;z-index:1000;pointer-events:none;padding:calc(env(safe-area-inset-top) + 14px) 15px 0; }
+    .panel { margin:0 auto;max-width:700px;padding:12px 16px;border-radius:12px;background:rgba(12,32,49,.87);color:#fff;box-shadow:0 3px 16px #0004; }
+    .title {font-size:17px;font-weight:700;margin:0 0 3px;}
+    #status {font-size:14px;line-height:1.5;margin:0;color:#d8edf8;}
+    #bottom {position:fixed;bottom:0;left:0;right:0;z-index:1000;display:flex;justify-content:center;gap:10px;align-items:center;padding:12px 12px calc(env(safe-area-inset-bottom) + 12px);pointer-events:none;}
+    button, a.button {pointer-events:auto;touch-action:manipulation;border:0;border-radius:10px;padding:11px 15px;background:#f5f8fb;color:#123049;font-weight:700;font-size:14px;text-decoration:none;cursor:pointer;}
+    a.button { background:#e1eaf1;}
+    #note {position:fixed;z-index:1000;right:14px;top:106px;max-width:190px;color:#edf6fb;background:rgba(12,32,49,.72);border-radius:10px;padding:9px 11px;font-size:12px;line-height:1.45;pointer-events:none;}
+  </style>
+</head>
+<body>
+  <div id="top"><div class="panel">
+    <p class="title">冰河地形 AR｜第一階段測試</p>
+    <p id="status" role="status" aria-live="polite">網頁正在載入，請允許使用相機…</p>
+  </div></div>
+  <div id="note">測試用的幾何山體，不代表真實冰河地形或等高線。這一步只驗證「紙張辨識＋立體模型追蹤」。</div>
+  <div id="bottom">
+    <button id="toggle" type="button">隱藏模型</button>
+    <a class="button" href="print.html" target="_blank" rel="noopener">開啟測試圖卡</a>
+  </div>
+
+  <!-- 此 .mind 與 print.html 所展示的圖卡，均採用 MindAR 官方範例。 -->
+  <a-scene
+    mindar-image="imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind;"
+    color-space="sRGB"
+    renderer="colorManagement: true;"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false"
+    embedded>
+    <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <a-entity id="tracked" mindar-image-target="targetIndex: 0">
+      <a-entity id="terrain" visible="true">
+        <!-- 卡片平面為 XY；Z 正方向是從卡片表面往鏡頭方向。 -->
+        <a-circle radius="0.34" color="#1a445f" opacity="0.72" position="0 0 0.012"></a-circle>
+        <a-cone color="#697c86" height="0.29" radius-bottom="0.18" radius-top="0" position="-0.19 0.07 0.14" rotation="90 0 0"></a-cone>
+        <a-cone color="#8da2ad" height="0.34" radius-bottom="0.20" radius-top="0" position="0.17 0.08 0.16" rotation="90 0 0"></a-cone>
+        <a-cone color="#c3d4de" height="0.16" radius-bottom="0.075" radius-top="0" position="0.17 0.08 0.335" rotation="90 0 0"></a-cone>
+        <a-cone color="#d8e6ed" height="0.13" radius-bottom="0.065" radius-top="0" position="-0.19 0.07 0.29" rotation="90 0 0"></a-cone>
+        <a-box color="#6ac9f0" opacity="0.90" width="0.09" height="0.52" depth="0.033" position="-0.005 -0.11 0.07" rotation="0 0 -11"></a-box>
+        <a-sphere color="#fff1ac" radius="0.045" position="0 -0.26 0.15"></a-sphere>
+      </a-entity>
+    </a-entity>
+    <a-ambient-light intensity="0.9"></a-ambient-light>
+    <a-directional-light color="#ffffff" intensity="0.7" position="0.5 1 2"></a-directional-light>
+  </a-scene>
+
+  <script>
+    const statusEl = document.querySelector('#status');
+    const scene = document.querySelector('a-scene');
+    const tracked = document.querySelector('#tracked');
+    const terrain = document.querySelector('#terrain');
+    const toggle = document.querySelector('#toggle');
+    scene.addEventListener('arReady', () => {
+      statusEl.textContent = '相機已啟動，請將鏡頭對準另一個螢幕或紙上的 MindAR 測試圖卡。';
+    });
+    scene.addEventListener('arError', () => {
+      statusEl.textContent = 'AR 無法啟動：請改用 iPad Safari、檢查相機權限，並確認網址是 https://。';
+    });
+    tracked.addEventListener('targetFound', () => {
+      statusEl.textContent = '已辨識圖卡！請移動 iPad，觀察山體是否固定在圖卡上。';
+    });
+    tracked.addEventListener('targetLost', () => {
+      statusEl.textContent = '目前未偵測到圖卡。請將整張圖卡置於畫面中，並減少反光。';
+    });
+    let visible = true;
+    toggle.addEventListener('click', () => {
+      visible = !visible;
+      terrain.setAttribute('visible', visible);
+      toggle.textContent = visible ? '隱藏模型' : '顯示模型';
+    });
+  </script>
+</body>
+</html>

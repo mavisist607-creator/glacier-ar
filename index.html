@@ -1,644 +1,149 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#10283a">
-  <title>冰河地形 AR｜第二版</title>
-
-  <!-- 固定版本，與第一階段相同 -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#102c3e">
+  <title>冰河地景｜等高線 × 立體 AR</title>
   <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-
   <style>
-    * { box-sizing: border-box; }
-
-    html, body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: -apple-system, BlinkMacSystemFont,
-                   "Noto Sans TC", sans-serif;
-      background: #071520;
-      color: #fff;
-    }
-
-    /* 相機影像與 AR 3D 畫面的圖層 */
-    #ar-root {
-      position: fixed;
-      inset: 0;
-      overflow: hidden;
-      isolation: isolate;
-      background: #071520;
-    }
-
-    /* MindAR 原始 video 預設 z-index:-2，
-       改為可見但位於 3D 畫布後方 */
-    #ar-root > video {
-      z-index: 0 !important;
-      display: block !important;
-      pointer-events: none;
-    }
-
-    #ar-root > a-scene {
-      position: absolute !important;
-      inset: 0;
-      width: 100% !important;
-      height: 100% !important;
-      z-index: 1;
-      background: transparent !important;
-    }
-
-    #ar-root canvas {
-      background: transparent !important;
-    }
-
-    /* 控制介面 */
-    #hud {
-      position: fixed;
-      inset: 0;
-      z-index: 20;
-      pointer-events: none;
-    }
-
-    #top {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      padding: calc(env(safe-area-inset-top) + 10px)
-               12px 0;
-      display: flex;
-      justify-content: center;
-    }
-
-    #status-card {
-      width: min(100%, 560px);
-      padding: 11px 14px;
-      border-radius: 14px;
-      background: rgba(10, 30, 44, .85);
-      box-shadow: 0 4px 18px rgba(0,0,0,.2);
-      backdrop-filter: blur(7px);
-    }
-
-    .status-line {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    #signal {
-      flex: none;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: #f5bc5c;
-      box-shadow: 0 0 0 3px rgba(245,188,92,.15);
-    }
-
-    body.tracking #signal {
-      background: #62d8a5;
-      box-shadow: 0 0 0 3px rgba(98,216,165,.18);
-    }
-
-    body.error #signal {
-      background: #fa7777;
-      box-shadow: 0 0 0 3px rgba(250,119,119,.18);
-    }
-
-    #status-title {
-      font-size: 15px;
-      font-weight: 700;
-    }
-
-    #status-desc {
-      margin: 5px 0 0 18px;
-      font-size: 13px;
-      line-height: 1.45;
-      color: #d9e7ef;
-    }
-
-    /* 相機預覽對準框 */
-    #aim {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%, -50%);
-      width: min(78vw, 500px);
-      aspect-ratio: 1.81 / 1;
-      border: 1px solid rgba(255,255,255,.33);
-      border-radius: 12px;
-      transition: opacity .15s;
-    }
-
-    body.tracking #aim {
-      opacity: .2;
-    }
-
-    .corner {
-      position: absolute;
-      width: 26px;
-      height: 26px;
-      border: 0 solid #fff;
-    }
-
-    .tl {
-      top: -2px; left: -2px;
-      border-top-width: 4px;
-      border-left-width: 4px;
-      border-top-left-radius: 10px;
-    }
-
-    .tr {
-      top: -2px; right: -2px;
-      border-top-width: 4px;
-      border-right-width: 4px;
-      border-top-right-radius: 10px;
-    }
-
-    .bl {
-      bottom: -2px; left: -2px;
-      border-bottom-width: 4px;
-      border-left-width: 4px;
-      border-bottom-left-radius: 10px;
-    }
-
-    .br {
-      bottom: -2px; right: -2px;
-      border-bottom-width: 4px;
-      border-right-width: 4px;
-      border-bottom-right-radius: 10px;
-    }
-
-    #aim-caption {
-      position: absolute;
-      left: 50%;
-      top: calc(100% + 12px);
-      transform: translateX(-50%);
-      white-space: nowrap;
-      padding: 7px 11px;
-      border-radius: 100px;
-      background: rgba(10,30,44,.8);
-      font-size: 12px;
-    }
-
-    /* 標籤說明 */
-    #explanation {
-      display: none;
-      position: absolute;
-      top: calc(env(safe-area-inset-top) + 94px);
-      right: 12px;
-      width: min(62vw, 235px);
-      padding: 12px;
-      border-radius: 12px;
-      background: rgba(10,30,44,.85);
-      font-size: 12px;
-      line-height: 1.6;
-    }
-
-    #explanation strong {
-      display: block;
-      margin-bottom: 5px;
-      font-size: 14px;
-    }
-
-    #explanation.is-visible {
-      display: block;
-    }
-
-    /* 底部功能按鈕 */
-    #bottom {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      display: flex;
-      justify-content: center;
-      flex-wrap: wrap;
-      gap: 8px;
-      padding: 12px 10px
-        calc(env(safe-area-inset-bottom) + 12px);
-      background: linear-gradient(
-        transparent, rgba(3,15,23,.75)
-      );
-      pointer-events: auto;
-    }
-
-    button, .button-link {
-      min-height: 44px;
-      padding: 9px 13px;
-      border: 1px solid rgba(255,255,255,.2);
-      border-radius: 10px;
-      background: rgba(13,40,58,.92);
-      color: #fff;
-      font-size: 13px;
-      font-weight: 700;
-      text-decoration: none;
-      white-space: nowrap;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-
-    button[aria-pressed="true"] {
-      background: #d8f5fb;
-      color: #12354a;
-    }
-
-    button:focus-visible,
-    .button-link:focus-visible {
-      outline: 3px solid #9be4f5;
-      outline-offset: 2px;
-    }
-
-    @media (max-width: 380px) {
-      button, .button-link {
-        font-size: 12px;
-        padding-inline: 9px;
-      }
-      #explanation {
-        top: calc(env(safe-area-inset-top) + 108px);
-      }
-    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;overflow:hidden;background:#071620;color:#fff;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif}
+    #ar-root{position:fixed;inset:0;isolation:isolate;overflow:hidden;background:#081823}
+    #ar-root>video{z-index:0!important;display:block!important;pointer-events:none}
+    #ar-root>a-scene{position:absolute!important;inset:0;width:100%!important;height:100%!important;z-index:1;background:transparent!important}
+    #ar-root canvas{background:transparent!important}
+    #hud{position:fixed;inset:0;z-index:25;pointer-events:none}
+    #head{position:absolute;top:0;left:0;right:0;padding:calc(env(safe-area-inset-top) + 9px) 12px 0;display:flex;justify-content:center}
+    .panel{width:min(100%,670px);border-radius:14px;padding:11px 14px;background:rgba(12,33,48,.88);box-shadow:0 5px 20px #0003;backdrop-filter:blur(6px)}
+    #state{display:flex;gap:9px;align-items:center;font-weight:750;font-size:15px}
+    #dot{background:#efb855;width:10px;height:10px;border-radius:50%;box-shadow:0 0 0 3px #efb85522;flex:none}
+    body.found #dot{background:#6ee4ac;box-shadow:0 0 0 3px #6ee4ac22}
+    body.error #dot{background:#fd7980;box-shadow:0 0 0 3px #fd798033}
+    #hint{margin:5px 0 0 18px;font-size:12px;color:#d8e8f0;line-height:1.5}
+    #reticle{position:absolute;left:50%;top:51%;width:min(76vw,580px);aspect-ratio:297/210;transform:translate(-50%,-50%);border:1px solid #ffffff70;border-radius:12px;transition:opacity .3s}
+    body.found #reticle{opacity:.2}
+    .angle{position:absolute;width:25px;height:25px;border-color:#c4f2ff;border-style:solid;border-width:0}
+    .tl{top:-2px;left:-2px;border-left-width:3px;border-top-width:3px;border-radius:8px 0 0 0}
+    .tr{top:-2px;right:-2px;border-right-width:3px;border-top-width:3px;border-radius:0 8px 0 0}
+    .bl{bottom:-2px;left:-2px;border-left-width:3px;border-bottom-width:3px;border-radius:0 0 0 8px}
+    .br{bottom:-2px;right:-2px;border-right-width:3px;border-bottom-width:3px;border-radius:0 0 8px 0}
+    #aimMsg{position:absolute;bottom:-31px;left:50%;transform:translateX(-50%);white-space:nowrap;color:#fff;font-size:12px;background:#0d2c40db;border-radius:99px;padding:5px 12px}
+    #answers{position:absolute;right:10px;top:calc(env(safe-area-inset-top) + 94px);width:min(240px,58vw);max-height:calc(100dvh - 202px);overflow-y:auto;padding:12px;border-radius:12px;background:#0d2d42ef;display:none;pointer-events:auto;font-size:12px;line-height:1.55}
+    #answers.show{display:block}
+    #answers strong{font-size:14px;display:block;margin:0 0 6px}
+    .answer{margin:4px 0;display:flex;align-items:flex-start;gap:7px}
+    .n{display:inline-flex;min-width:19px;height:19px;justify-content:center;align-items:center;background:#dff4ff;color:#124157;font-weight:750;border-radius:50%;font-size:11px}
+    #toolbar{position:absolute;left:0;right:0;bottom:0;padding:12px 8px calc(env(safe-area-inset-bottom) + 12px);background:linear-gradient(transparent,#061824e6);display:flex;gap:8px;justify-content:center;flex-wrap:wrap;pointer-events:auto}
+    button,a.btn{border:1px solid #ffffff35;background:#10384ddd;color:#fff;border-radius:10px;min-height:44px;padding:10px 12px;font-size:13px;font-weight:700;text-decoration:none;cursor:pointer;touch-action:manipulation}
+    button[aria-pressed="true"]{background:#d9f4fb;color:#163b4d}
+    #buildinfo{display:block;position:absolute;left:10px;top:calc(env(safe-area-inset-top) + 88px);font-size:10px;color:#dbe8ef;background:#0d2d42c4;border-radius:8px;padding:6px 8px}
+    @media(max-width:480px){#buildinfo{display:none}#answers{max-height:calc(100dvh - 210px)}button,a.btn{font-size:12px;padding:9px}}
   </style>
 </head>
-
 <body>
-
-  <!-- AR 場景與相機 -->
   <div id="ar-root">
-
-    <a-scene
-      id="ar-scene"
-      embedded
-      mindar-image="
-        imageTargetSrc: https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.5/examples/image-tracking/assets/card-example/card.mind;
-        maxTrack: 1;
-        filterMinCF: 0.1;
-        filterBeta: 10;
-        warmupTolerance: 5;
-        missTolerance: 8;
-        uiLoading: no;
-        uiScanning: no;
-        uiError: no;
-      "
-      color-space="sRGB"
+    <a-scene id="scene" embedded
+      mindar-image="imageTargetSrc: ./targets.mind; maxTrack: 1; filterMinCF: 0.1; filterBeta: 10; warmupTolerance: 5; missTolerance: 8; uiLoading: no; uiScanning: no; uiError: no;"
       renderer="alpha: true; antialias: true; colorManagement: true;"
-      vr-mode-ui="enabled: false"
+      color-space="sRGB" vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false">
-
-      <a-camera
-        position="0 0 0"
-        look-controls="enabled: false">
-      </a-camera>
-
-      <!-- 追蹤圖卡的錨定節點 -->
-      <a-entity
-        id="tracked"
-        mindar-image-target="targetIndex: 0">
-
-        <!-- 測試用立體山體 -->
+      <a-assets timeout="30000">
+        <a-asset-item id="terrainAsset" src="./terrain.glb"></a-asset-item>
+      </a-assets>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-entity id="target" mindar-image-target="targetIndex: 0">
+        <!-- glb 的 XY 與紙本 A4 的位置由同一組毫米座標轉換，無須任意位移。 -->
         <a-entity id="terrain" visible="true">
-
-          <a-circle
-            radius="0.34"
-            color="#35627b"
-            opacity="0.65"
-            position="0 0 0.008">
-          </a-circle>
-
-          <a-cone
-            color="#758a99"
-            height="0.29"
-            radius-bottom="0.18"
-            position="-0.19 0.07 0.145"
-            rotation="90 0 0">
-          </a-cone>
-
-          <a-cone
-            color="#9bb0bc"
-            height="0.34"
-            radius-bottom="0.20"
-            position="0.17 0.08 0.170"
-            rotation="90 0 0">
-          </a-cone>
-
-          <a-cone
-            color="#e3f0f5"
-            height="0.13"
-            radius-bottom="0.065"
-            position="-0.19 0.07 0.32"
-            rotation="90 0 0">
-          </a-cone>
-
-          <a-cone
-            color="#e3f0f5"
-            height="0.16"
-            radius-bottom="0.075"
-            position="0.17 0.08 0.38"
-            rotation="90 0 0">
-          </a-cone>
-
-          <a-box
-            color="#57bfe6"
-            opacity="0.85"
-            width="0.085"
-            height="0.50"
-            depth="0.025"
-            position="-0.005 -0.11 0.065"
-            rotation="0 0 -11">
-          </a-box>
-
+          <a-gltf-model src="#terrainAsset" position="0 0 0" rotation="0 0 0" scale="1 1 1"></a-gltf-model>
         </a-entity>
-
-        <!--
-          定位點：
-          原始測試卡寬度標準化為 1，
-          高度約為 0.552。
-
-          四個紅色圓圈是紙面對位參考。
-          中央藍色圓圈標示圖卡中心。
-        -->
-        <a-entity id="pins" visible="false">
-
-          <a-ring
-            color="#ff715b"
-            radius-inner="0.021"
-            radius-outer="0.028"
-            position="-0.465 0.242 0.020">
-          </a-ring>
-
-          <a-ring
-            color="#ff715b"
-            radius-inner="0.021"
-            radius-outer="0.028"
-            position="0.465 0.242 0.020">
-          </a-ring>
-
-          <a-ring
-            color="#ff715b"
-            radius-inner="0.021"
-            radius-outer="0.028"
-            position="-0.465 -0.242 0.020">
-          </a-ring>
-
-          <a-ring
-            color="#ff715b"
-            radius-inner="0.021"
-            radius-outer="0.028"
-            position="0.465 -0.242 0.020">
-          </a-ring>
-
-          <a-ring
-            color="#7de4ff"
-            radius-inner="0.018"
-            radius-outer="0.025"
-            position="0 0 0.024">
-          </a-ring>
-
-        </a-entity>
-
-        <!-- 測試模型數字標記 -->
-        <a-entity id="labels" visible="false">
-
-          <a-text
-            value="1"
-            color="#fff8cb"
-            align="center"
-            width="0.45"
-            position="-0.19 0.07 0.45"
-            side="double">
-          </a-text>
-
-          <a-text
-            value="2"
-            color="#fff8cb"
-            align="center"
-            width="0.45"
-            position="0.17 0.08 0.50"
-            side="double">
-          </a-text>
-
-          <a-text
-            value="3"
-            color="#fff8cb"
-            align="center"
-            width="0.45"
-            position="0 -0.15 0.15"
-            side="double">
-          </a-text>
-
-        </a-entity>
-
+        <a-entity id="pins" visible="false"></a-entity>
+        <a-entity id="markers" visible="false"></a-entity>
       </a-entity>
-
-      <a-ambient-light intensity="0.85">
-      </a-ambient-light>
-
-      <a-directional-light
-        intensity="0.85"
-        position="0.6 0.8 2">
-      </a-directional-light>
-
+      <a-ambient-light intensity="1.15"></a-ambient-light>
+      <a-directional-light intensity="0.65" position="-1 1 2"></a-directional-light>
     </a-scene>
   </div>
 
-  <!-- 相機預覽上的介面 -->
   <div id="hud">
-
-    <div id="top">
-      <div id="status-card" role="status" aria-live="polite">
-        <div class="status-line">
-          <span id="signal"></span>
-          <span id="status-title">正在啟動 AR 相機</span>
-        </div>
-        <p id="status-desc">
-          請使用 iPad Safari 並允許相機權限。
-        </p>
-      </div>
-    </div>
-
-    <!-- 對準框 -->
-    <div id="aim" aria-hidden="true">
-      <span class="corner tl"></span>
-      <span class="corner tr"></span>
-      <span class="corner bl"></span>
-      <span class="corner br"></span>
-      <div id="aim-caption">
-        將整張彩色測試圖卡對準框內
-      </div>
-    </div>
-
-    <!-- 模型解說 -->
-    <div id="explanation">
-      <strong>模型測試標記</strong>
-      1：左側山峰<br>
-      2：右側山峰<br>
-      3：中央谷地<br><br>
-      這只是 AR 操作測試，不是冰蝕地形的標準答案。
-    </div>
-
-    <!-- 按鈕 -->
-    <div id="bottom">
-
-      <button id="btn-terrain"
-              type="button"
-              aria-pressed="true">
-        隱藏模型
-      </button>
-
-      <button id="btn-pins"
-              type="button"
-              aria-pressed="false">
-        顯示定位點
-      </button>
-
-      <button id="btn-labels"
-              type="button"
-              aria-pressed="false">
-        顯示標籤
-      </button>
-
-      <a class="button-link"
-         href="print.html"
-         target="_blank"
-         rel="noopener">
-        開啟圖卡
-      </a>
-
+    <div id="head"><div class="panel" role="status" aria-live="polite">
+      <div id="state"><span id="dot"></span><span id="title">冰河地景 AR｜啟動中</span></div>
+      <p id="hint">請允許相機權限。正式版需先上傳已編譯的 targets.mind。</p>
+    </div></div>
+    <div id="reticle" aria-hidden="true"><i class="angle tl"></i><i class="angle tr"></i><i class="angle bl"></i><i class="angle br"></i><span id="aimMsg">請將整張 A4 橫式圖放入鏡頭</span></div>
+    <div id="buildinfo">合成地形示意｜40 m 等高距｜非真實測繪資料</div>
+    <div id="answers"><strong>教師驗證｜地形標記</strong><div id="answerList">載入中…</div><p style="color:#b8d6e7;margin:8px 0 0">等高線反映外形，不能單憑它判定岩性或沉積成因。</p></div>
+    <div id="toolbar">
+      <button id="btnModel" aria-pressed="true">隱藏地形</button>
+      <button id="btnPin" aria-pressed="false">顯示校準點</button>
+      <button id="btnAnswer" aria-pressed="false">顯示答案</button>
+      <a class="btn" href="print.html" target="_blank" rel="noopener">列印 A4</a>
     </div>
   </div>
 
   <script>
-    const scene = document.getElementById('ar-scene');
-    const target = document.getElementById('tracked');
-
-    const statusTitle = document.getElementById('status-title');
-    const statusDesc = document.getElementById('status-desc');
-    const aimCaption = document.getElementById('aim-caption');
-    const explanation = document.getElementById('explanation');
-
-    // 更新相機和定位狀態
-    function setStatus(title, detail, mode) {
-      document.body.classList.toggle(
-        'tracking', mode === 'tracking'
-      );
-      document.body.classList.toggle(
-        'error', mode === 'error'
-      );
-
-      statusTitle.textContent = title;
-      statusDesc.textContent = detail;
+    'use strict';
+    const $=id=>document.getElementById(id);
+    const scene=$('scene'),target=$('target');
+    const status=(title,hint,kind='')=>{
+      $('title').textContent=title; $('hint').textContent=hint;
+      document.body.classList.toggle('found',kind==='found');
+      document.body.classList.toggle('error',kind==='error');
+    };
+    scene.addEventListener('arReady',()=>status('相機已開啟｜尋找整張 A4','將紙本放在桌上，保持平整且避免反光。'));
+    scene.addEventListener('arError',()=>status('AR 初始化失敗','請確認 targets.mind 已上傳、HTTPS 網站、相機權限與網路。','error'));
+    scene.addEventListener('loaded',()=>console.log('A-Frame loaded'));
+    target.addEventListener('targetFound',()=>{
+      status('已定位｜冰河地形追蹤中','慢慢移動 iPad，觀察整張地形是否跟隨紙面。','found');
+      $('aimMsg').textContent='追蹤成功';
+    });
+    target.addEventListener('targetLost',()=>{
+      status('暫時失去定位','重新讓整張圖的一部分回到鏡頭，避免遮住辨識區。');
+      $('aimMsg').textContent='請將整張 A4 橫式圖放入鏡頭';
+    });
+    function toggle(buttonId,elementId,visibleInitially,visibleText,hiddenText,after){
+      let visible=visibleInitially; const b=$(buttonId),e=$(elementId);
+      const render=()=>{e.setAttribute('visible',visible);b.setAttribute('aria-pressed',String(visible));b.textContent=visible?visibleText:hiddenText;if(after)after(visible);};
+      b.addEventListener('click',()=>{visible=!visible;render();});render();
     }
-
-    // AR 相機啟動成功
-    scene.addEventListener('arReady', () => {
-      setStatus(
-        '相機已啟動｜正在尋找圖卡',
-        '畫面應顯示即時影像；請對準第一階段的彩色測試圖卡。'
-      );
-    });
-
-    // AR 啟動失敗
-    scene.addEventListener('arError', () => {
-      setStatus(
-        '相機或 AR 啟動失敗',
-        '請確認 Safari 相機權限、HTTPS，以及網路連線；也可重新整理。',
-        'error'
-      );
-    });
-
-    // 找到圖卡
-    target.addEventListener('targetFound', () => {
-      setStatus(
-        '已定位｜追蹤中',
-        '請緩慢移動 iPad，檢查模型和圖卡是否同步移動。',
-        'tracking'
-      );
-
-      aimCaption.textContent = '辨識成功';
-    });
-
-    // 失去圖卡
-    target.addEventListener('targetLost', () => {
-      setStatus(
-        '暫時失去定位',
-        '請將圖卡重新放回鏡頭中央，注意照明、反光及遮擋。'
-      );
-
-      aimCaption.textContent =
-        '將整張彩色測試圖卡對準框內';
-    });
-
-    // 通用顯示開關
-    function setupToggle(
-      buttonId,
-      entityId,
-      initiallyVisible,
-      labelWhenVisible,
-      labelWhenHidden,
-      onToggle
-    ) {
-      const button = document.getElementById(buttonId);
-      const entity = document.getElementById(entityId);
-
-      let visible = initiallyVisible;
-
-      entity.setAttribute('visible', visible);
-      button.setAttribute('aria-pressed', String(visible));
-      button.textContent = visible
-        ? labelWhenVisible
-        : labelWhenHidden;
-
-      button.addEventListener('click', () => {
-        visible = !visible;
-
-        entity.setAttribute('visible', visible);
-        button.setAttribute('aria-pressed', String(visible));
-
-        button.textContent = visible
-          ? labelWhenVisible
-          : labelWhenHidden;
-
-        if (onToggle) onToggle(visible);
-      });
+    function loc(x_mm,y_mm,z=.025){return `${(x_mm-148.5)/297} ${(105-y_mm)/297} ${z}`;}
+    // 紙本 X1–X4 校準記號相對整張 A4 的位置，僅供目視檢查偏移。
+    for(const [x,y] of [[20,46],[277,46],[20,174],[277,174]]){
+      const ring=document.createElement('a-ring');
+      ring.setAttribute('color','#ff6c62');
+      ring.setAttribute('radius-inner','0.007');
+      ring.setAttribute('radius-outer','0.011');
+      ring.setAttribute('position',loc(x,y));
+      $('pins').appendChild(ring);
     }
+    toggle('btnModel','terrain',true,'隱藏地形','顯示地形');
+    toggle('btnPin','pins',false,'隱藏校準點','顯示校準點');
+    toggle('btnAnswer','markers',false,'隱藏答案','顯示答案',v=>$('answers').classList.toggle('show',v));
 
-    // 模型開關
-    setupToggle(
-      'btn-terrain',
-      'terrain',
-      true,
-      '隱藏模型',
-      '顯示模型'
-    );
-
-    // 定位點開關
-    setupToggle(
-      'btn-pins',
-      'pins',
-      false,
-      '隱藏定位點',
-      '顯示定位點'
-    );
-
-    // 標籤開關
-    setupToggle(
-      'btn-labels',
-      'labels',
-      false,
-      '隱藏標籤',
-      '顯示標籤',
-      (visible) => {
-        explanation.classList.toggle(
-          'is-visible',
-          visible
-        );
+    // 注意：標記座標由同一份高度網格與紙本座標生成，與教師答案對應。
+    fetch('./features.json').then(r=>{if(!r.ok)throw Error('features.json 無法載入');return r.json();}).then(list=>{
+      $('answerList').replaceChildren();
+      for(const f of list){
+        const sphere=document.createElement('a-sphere');
+        sphere.setAttribute('radius','0.0065');
+        sphere.setAttribute('color',f.color);
+        sphere.setAttribute('position',`${f.ar_x} ${f.ar_y} ${f.ar_z}`);
+        $('markers').appendChild(sphere);
+        const txt=document.createElement('a-text');
+        txt.setAttribute('value',String(f.id));
+        txt.setAttribute('align','center');
+        txt.setAttribute('color','#ffffff');
+        txt.setAttribute('width','0.105');
+        txt.setAttribute('side','double');
+        txt.setAttribute('position',`${f.ar_x} ${f.ar_y} ${f.ar_z+0.007}`);
+        $('markers').appendChild(txt);
+        const row=document.createElement('div');row.className='answer';
+        const number=document.createElement('span');number.className='n';number.textContent=f.id;
+        const name=document.createElement('span');name.textContent=`${f.name}｜${f.process}`;
+        row.append(number,name);$('answerList').appendChild(row);
       }
-    );
+    }).catch(err=>{console.error(err);$('answerList').textContent='讀取教師解答資料失敗，請檢查 features.json 是否已上傳。';});
   </script>
-
 </body>
 </html>

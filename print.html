@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>冰河地景 AR｜A4 列印</title>
+<style>
+  body{margin:0;padding:20px;background:#e9f0f3;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;color:#17384a}
+  .toolbar{max-width:1050px;margin:auto auto 18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  button,a{background:#17445e;color:#fff;border:0;padding:10px 17px;border-radius:8px;text-decoration:none;font-size:14px;cursor:pointer}
+  .note{margin:0 0 12px;font-size:14px}
+  .paper{background:#fff;width:min(100%,1050px);margin:auto;box-shadow:0 10px 24px #0002}
+  .paper img{display:block;width:100%;height:auto}
+  @page{size:A4 landscape;margin:0}
+  @media print{html,body{padding:0;margin:0;background:white;print-color-adjust:exact;-webkit-print-color-adjust:exact}.toolbar,.note{display:none}.paper{width:297mm;height:210mm;margin:0;box-shadow:none}.paper img{width:297mm;height:210mm;object-fit:fill}}
+</style></head>
+<body>
+  <div class="toolbar"><strong>冰河地景｜學生用 A4 等高線圖</strong><button onclick="window.print()">列印 A4 橫式</button><a href="sheet-student.png" download>儲存 PNG</a><a href="sheet-teacher.png" target="_blank" rel="noopener">教師參考答案</a></div>
+  <div class="note" style="max-width:1050px;margin-inline:auto">請選 A4 橫式、比例 100%（或依印表機可列印範圍縮放整張）。勿裁切四周內容；實際列印請勿把教師答案版當 AR 辨識圖。</div>
+  <div class="paper"><img src="sheet-student.png" width="3508" height="2480" alt="A4 冰河地景等高線圖"></div>
+</body></html>
